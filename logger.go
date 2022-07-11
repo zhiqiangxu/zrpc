@@ -38,7 +38,7 @@ func init() {
 		}
 		l, err = logger.New(config)
 		if err != nil {
-			panic(fmt.Sprintf("qrpc.zap.Build:%v", err))
+			panic(fmt.Sprintf("zrpc.zap.Build:%v", err))
 		}
 	}
 }

@@ -2,6 +2,7 @@ package zrpc
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 )
@@ -10,9 +11,9 @@ const (
 	HelloCmd Cmd = iota
 )
 
-func TestZrpc(t *testing.T) {
+func TestZrpcTCP(t *testing.T) {
 	address := "localhost:8002"
-	s := startServer(address)
+	s := startServer("tcp", address)
 	defer func() {
 		fmt.Println("Shutdown")
 		s.Shutdown()
@@ -39,9 +40,39 @@ func TestZrpc(t *testing.T) {
 
 }
 
+func TestZrpcUnix(t *testing.T) {
+	address := "/tmp/zrpc.ipc"
+	os.Remove(address)
+	s := startServer("unix", address)
+	defer func() {
+		fmt.Println("Shutdown")
+		s.Shutdown()
+	}()
+
+	c, err := DialUnix(address, ConnectionConfig{}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	payload := make([]byte, 100)
+	payload[0] = 'a'
+
+	gate := make(chan struct{}, 1)
+
+	for i := 0; i < 7; i++ {
+		start := time.Now()
+		c.Request(HelloCmd, payload, func(f *Frame) {
+			gate <- struct{}{}
+		})
+		<-gate
+		fmt.Println("cost", time.Since(start))
+	}
+
+}
+
 func BenchmarkLatency(b *testing.B) {
 	address := "localhost:8002"
-	s := startServer(address)
+	s := startServer("tcp", address)
 	defer func() {
 		fmt.Println("Shutdown")
 		s.Shutdown()
@@ -66,8 +97,17 @@ func BenchmarkLatency(b *testing.B) {
 	}
 }
 
-func startServer(address string) (s *Server) {
-	s, err := ListenTCP(address, ServerConfig{})
+func startServer(network, address string) (s *Server) {
+
+	var err error
+	switch network {
+	case "tcp":
+		s, err = ListenTCP(address, ServerConfig{})
+	case "unix":
+		s, err = ListenUnix(address, ServerConfig{})
+	default:
+		panic(fmt.Sprintf("unknown network:%s", network))
+	}
 	if err != nil {
 		panic(err)
 	}
