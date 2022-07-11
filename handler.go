@@ -28,17 +28,19 @@ type ServeMux struct {
 
 func NewServeMux(ctx context.Context) *ServeMux { return &ServeMux{ctx: ctx} }
 
-func (mux *ServeMux) HandleFunc(cmd Cmd, handler func(w Responser, requestFrame *Frame)) {
-	mux.Handle(cmd, HandlerFunc(handler))
+func (mux *ServeMux) HandleFunc(cmd Cmd, handler func(w Responser, requestFrame *Frame)) error {
+	return mux.Handle(cmd, HandlerFunc(handler))
 }
 
-func (mux *ServeMux) Handle(cmd Cmd, handler Handler) {
+func (mux *ServeMux) Handle(cmd Cmd, handler Handler) (err error) {
 	if handler == nil {
-		panic("zrpc: nil handler")
+		err = fmt.Errorf("zrpc: nil handler")
+		return
 	}
 
 	if cmd > MaxCmd {
-		panic("zrpc: cmd too big")
+		err = fmt.Errorf("zrpc: cmd too big")
+		return
 	}
 
 	mux.mu.Lock()
@@ -48,10 +50,12 @@ func (mux *ServeMux) Handle(cmd Cmd, handler Handler) {
 		mux.m = make(map[Cmd]Handler)
 	}
 	if _, exist := mux.m[cmd]; exist {
-		panic(fmt.Sprintf("zrpc: multiple registrations for cmd %d", cmd))
+		err = fmt.Errorf("zrpc: multiple registrations for cmd %d", cmd)
+		return
 	}
 
 	mux.m[cmd.Routing()] = handler
+	return
 }
 
 func (mux *ServeMux) ServeZrpc(w Responser, f *Frame) {
