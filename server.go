@@ -129,3 +129,7 @@ func (s *Server) Shutdown() (err error) {
 	// s.wg.Wait()
 	return
 }
+
+func (s *Server) GetCtx() context.Context {
+	return s.ctx
+}
