@@ -70,7 +70,7 @@ func TestZrpcUnix(t *testing.T) {
 
 }
 
-func BenchmarkLatency(b *testing.B) {
+func BenchmarkTCPLatency(b *testing.B) {
 	address := "localhost:8002"
 	s := startServer("tcp", address)
 	defer func() {
@@ -79,6 +79,34 @@ func BenchmarkLatency(b *testing.B) {
 	}()
 
 	c, err := DialTCP(address, ConnectionConfig{}, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	payload := make([]byte, 100)
+	payload[0] = 'a'
+
+	gate := make(chan struct{}, 1)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		c.Request(HelloCmd, payload, func(f *Frame) {
+			gate <- struct{}{}
+		})
+		<-gate
+	}
+}
+
+func BenchmarkUnixLatency(b *testing.B) {
+	address := "/tmp/zrpc.test"
+	os.Remove(address)
+	s := startServer("unix", address)
+	defer func() {
+		fmt.Println("Shutdown")
+		s.Shutdown()
+	}()
+
+	c, err := DialUnix(address, ConnectionConfig{}, nil)
 	if err != nil {
 		panic(err)
 	}
