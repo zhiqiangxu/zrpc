@@ -22,9 +22,6 @@ func (mux *ServeMux) RegisterName(name string, receiver interface{}) (err error)
 		return fmt.Errorf("service %T doesn't have any suitable methods/subscriptions to expose", rcvrVal)
 	}
 
-	mux.mu.Lock()
-	defer mux.mu.Unlock()
-
 	for method := range callbacks {
 		cb := callbacks[method]
 		fqName := fmt.Sprintf("%s/%s", name, method)
@@ -50,6 +47,7 @@ func (mux *ServeMux) RegisterName(name string, receiver interface{}) (err error)
 
 		})
 	}
+
 	return
 }
 
