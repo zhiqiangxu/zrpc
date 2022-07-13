@@ -157,9 +157,12 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 		if err != nil {
 			return
 		}
-		c.RLock()
+		c.Lock()
 		f := c.respes[frame.RequestID]
-		c.RUnlock()
+		if f != nil {
+			delete(c.respes, frame.RequestID)
+		}
+		c.Unlock()
 		if f != nil {
 			f(frame)
 			continue
