@@ -31,6 +31,7 @@ type ConnectionConfig struct {
 	RTO             time.Duration
 	WTO             time.Duration
 	DefaultReadSize int
+	OnClose         func()
 }
 
 var DefaultReadSize = 300
@@ -94,6 +95,10 @@ func (c *Connection) Close() (err error) {
 	err = c.rw.Close()
 	if err != nil {
 		l.Error("zrpc: Connection.Close error", zap.Error(err))
+	}
+
+	if c.config.OnClose != nil {
+		c.config.OnClose()
 	}
 	return
 }
