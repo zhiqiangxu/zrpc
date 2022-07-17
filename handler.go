@@ -67,7 +67,7 @@ func (mux *ServeMux) ServeZrpc(w Responser, f *Frame) {
 
 	if !ok {
 		l.Error("cmd not registered", zap.Uint32("cmd", uint32(f.Cmd)))
-		w.Close()
+		w.Close(nil)
 		return
 	}
 

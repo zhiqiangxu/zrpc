@@ -12,7 +12,7 @@ import (
 
 type Responser interface {
 	Response(requestFrame *Frame, payload []byte) error
-	Close() error
+	Close(reason error) error
 }
 
 type Server struct {

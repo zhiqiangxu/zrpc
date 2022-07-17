@@ -31,7 +31,7 @@ type ConnectionConfig struct {
 	RTO             time.Duration
 	WTO             time.Duration
 	DefaultReadSize int
-	OnClose         func()
+	OnClose         func(error)
 }
 
 var DefaultReadSize = 300
@@ -79,14 +79,14 @@ func NewConnection(rw net.Conn, h Handler, config ConnectionConfig) (c *Connecti
 	c = &Connection{rw: rw, h: h, config: config}
 	err = c.init()
 	if err != nil {
-		if ce := c.close(); ce != nil {
+		if ce := c.close(err); ce != nil {
 			l.Error("zrpc: Connection.Close error when NewConnection", zap.Error(err))
 		}
 	}
 	return
 }
 
-func (c *Connection) Close() (err error) {
+func (c *Connection) Close(reason error) (err error) {
 	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
 	if !ok {
 		err = fmt.Errorf("Connection is already closed")
@@ -98,14 +98,14 @@ func (c *Connection) Close() (err error) {
 	}
 
 	if c.config.OnClose != nil {
-		c.config.OnClose()
+		c.config.OnClose(reason)
 	}
 	return
 }
 
-func (c *Connection) close() (err error) {
+func (c *Connection) close(reason error) (err error) {
 
-	c.Close()
+	c.Close(reason)
 
 	c.wg.Wait()
 	return
@@ -148,7 +148,7 @@ func (c *Connection) init() (err error) {
 func (c *Connection) serve(ctx context.Context) (err error) {
 
 	defer func() {
-		c.close()
+		c.close(err)
 	}()
 
 	var frame *Frame

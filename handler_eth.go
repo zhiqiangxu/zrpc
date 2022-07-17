@@ -30,7 +30,7 @@ func (mux *ServeMux) RegisterName(name string, receiver interface{}) (err error)
 			args, err := parsePositionalArguments(requestFrame.Payload, cb.argTypes)
 			if err != nil {
 				w.Response(requestFrame, []byte(fqName+":"+err.Error()))
-				w.Close()
+				w.Close(nil)
 				return
 			}
 
