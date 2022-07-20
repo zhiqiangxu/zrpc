@@ -169,7 +169,7 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 		}
 
 		if c.h == nil {
-			l.Warn("zrpc: dropped frame", zap.Uint32("cmd", uint32(frame.Cmd)), zap.Uint64("requestID", frame.RequestID))
+			l.Warn("zrpc: dropped frame", zap.Uint32("cmd", uint32(frame.Cmd)), zap.Uint64("requestID", frame.RequestID), zap.String("payload", string(frame.Payload)))
 			continue
 		}
 		util.GoFunc(&c.wg, func() {
