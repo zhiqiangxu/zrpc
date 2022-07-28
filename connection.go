@@ -157,6 +157,10 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 		if err != nil {
 			return
 		}
+		if frame == nil {
+			l.Warn("zrpc: bug, empty frame")
+			return
+		}
 		c.Lock()
 		f := c.respes[frame.RequestID]
 		if f != nil {
@@ -169,7 +173,12 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 		}
 
 		if c.h == nil {
-			l.Warn("zrpc: dropped frame", zap.Uint32("cmd", uint32(frame.Cmd)), zap.Uint64("requestID", frame.RequestID), zap.String("payload", string(frame.Payload)))
+			l.Warn(
+				"zrpc: dropped frame",
+				zap.Uint32("cmd", uint32(frame.Cmd)),
+				zap.Uint64("requestID", frame.RequestID),
+				zap.String("payload", string(frame.Payload)),
+				zap.Uint64("ridGen", atomic.LoadUint64(&c.ridGen)))
 			continue
 		}
 		util.GoFunc(&c.wg, func() {
