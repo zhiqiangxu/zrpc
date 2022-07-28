@@ -151,12 +151,13 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 		c.close(err)
 	}()
 
-	var frame *Frame
 	for {
+		var frame *Frame
 		frame, err = c.readFrame(ctx)
 		if err != nil {
 			return
 		}
+
 		if frame == nil {
 			l.Warn("zrpc: bug, empty frame")
 			return
@@ -178,6 +179,7 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 				zap.Uint32("cmd", uint32(frame.Cmd)),
 				zap.Uint64("requestID", frame.RequestID),
 				zap.String("payload", string(frame.Payload)),
+				zap.Int("#payload", len(frame.Payload)),
 				zap.Uint64("ridGen", atomic.LoadUint64(&c.ridGen)))
 			continue
 		}

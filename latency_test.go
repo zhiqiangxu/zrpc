@@ -27,17 +27,19 @@ func TestZrpcTCP(t *testing.T) {
 	payload := make([]byte, 100)
 	payload[0] = 'a'
 
-	gate := make(chan struct{}, 1)
+	gate := make(chan struct{}, 2)
 
 	for i := 0; i < 7; i++ {
 		start := time.Now()
 		c.Request(HelloCmd, payload, func(f *Frame) {
-			gate <- struct{}{}
+			<-gate
 		})
-		<-gate
+		gate <- struct{}{}
 		fmt.Println("cost", time.Since(start))
 	}
 
+	time.Sleep(time.Microsecond * 200)
+	fmt.Println("#gate", len(gate), c.respes)
 }
 
 func TestZrpcUnix(t *testing.T) {
