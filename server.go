@@ -13,6 +13,8 @@ import (
 type Responser interface {
 	Response(requestFrame *Frame, payload []byte) error
 	Close(reason error) error
+	SetID(interface{})
+	GetID() interface{}
 }
 
 type Server struct {

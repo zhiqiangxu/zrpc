@@ -23,6 +23,7 @@ type Connection struct {
 	nextBytes []byte
 	ridGen    uint64
 	respes    map[uint64]func(*Frame)
+	id        interface{}
 }
 
 type ConnectionConfig struct {
@@ -158,6 +159,21 @@ func (c *Connection) init() (err error) {
 	return
 }
 
+func (c *Connection) GetID() (id interface{}) {
+	c.RLock()
+
+	id = c.id
+
+	c.RUnlock()
+	return
+}
+
+func (c *Connection) SetID(id interface{}) {
+	c.Lock()
+	c.id = id
+	c.Unlock()
+}
+
 func (c *Connection) serve(ctx context.Context) (err error) {
 
 	defer func() {
@@ -271,6 +287,7 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 		}
 	}
 }
+
 func (c *Connection) Response(requestFrame *Frame, payload []byte) (err error) {
 
 	var header [headerSize]byte
