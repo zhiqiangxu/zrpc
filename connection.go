@@ -86,6 +86,19 @@ func NewConnection(rw net.Conn, h Handler, config ConnectionConfig) (c *Connecti
 	return
 }
 
+func (c *Connection) CloseNoCallback() (err error) {
+	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
+	if !ok {
+		err = fmt.Errorf("Connection is already closed")
+		return
+	}
+	err = c.rw.Close()
+	if err != nil {
+		l.Error("zrpc: Connection.Close error", zap.Error(err))
+	}
+	return
+}
+
 func (c *Connection) Close(reason error) (err error) {
 	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
 	if !ok {
