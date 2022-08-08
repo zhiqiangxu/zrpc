@@ -1,7 +1,6 @@
 package zrpc
 
 import (
-	"context"
 	"fmt"
 	"sync"
 
@@ -21,12 +20,11 @@ func (f HandlerFunc) ServeZrpc(w Responser, frame *Frame) {
 
 // ServeMux is zrpc request multiplexer.
 type ServeMux struct {
-	mu  sync.RWMutex
-	m   map[Cmd]Handler
-	ctx context.Context
+	mu sync.RWMutex
+	m  map[Cmd]Handler
 }
 
-func NewServeMux(ctx context.Context) *ServeMux { return &ServeMux{ctx: ctx} }
+func NewServeMux() *ServeMux { return &ServeMux{} }
 
 func (mux *ServeMux) HandleFunc(cmd Cmd, handler func(w Responser, requestFrame *Frame)) error {
 	return mux.Handle(cmd, HandlerFunc(handler))

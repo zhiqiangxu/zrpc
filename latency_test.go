@@ -141,7 +141,7 @@ func startServer(network, address string) (s *Server) {
 	if err != nil {
 		panic(err)
 	}
-	mux := NewServeMux(s.ctx)
+	mux := NewServeMux()
 	err = mux.HandleFunc(HelloCmd, func(w Responser, requestFrame *Frame) {
 		err := w.Response(requestFrame, requestFrame.Payload)
 		if err != nil {

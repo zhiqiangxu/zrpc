@@ -11,7 +11,7 @@ import (
 	"reflect"
 )
 
-func (mux *ServeMux) RegisterName(name string, receiver interface{}) (err error) {
+func (mux *ServeMux) RegisterName(ctx context.Context, name string, receiver interface{}) (err error) {
 	rcvrVal := reflect.ValueOf(receiver)
 	if name == "" {
 		return fmt.Errorf("no service name for type %s", rcvrVal.Type().String())
@@ -34,7 +34,7 @@ func (mux *ServeMux) RegisterName(name string, receiver interface{}) (err error)
 				return
 			}
 
-			result, err := cb.call(mux.ctx, fqName, args)
+			result, err := cb.call(ctx, fqName, args)
 			if err != nil {
 				jsonBytes, _ := json.Marshal(JsonrpcMessage{Error: fqName + ":" + err.Error()})
 				w.Response(requestFrame, jsonBytes)
