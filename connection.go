@@ -24,6 +24,7 @@ type Connection struct {
 	ridGen    uint64
 	respes    map[uint64]func(*Frame)
 	id        interface{}
+	server    uint64
 }
 
 type ConnectionConfig struct {
@@ -32,7 +33,7 @@ type ConnectionConfig struct {
 	RTO             time.Duration
 	WTO             time.Duration
 	DefaultReadSize int
-	OnClose         func(error)
+	OnClose         func(*Connection, error)
 }
 
 var DefaultReadSize = 300
@@ -52,7 +53,7 @@ func DialTCP(address string, config ConnectionConfig, h Handler) (c *Connection,
 		return
 	}
 
-	c, err = NewConnection(rw, h, config)
+	c, err = NewConnection(rw, h, config, false)
 	if err != nil {
 		return
 	}
@@ -67,7 +68,7 @@ func DialUnix(address string, config ConnectionConfig, h Handler) (c *Connection
 		return
 	}
 
-	c, err = NewConnection(rw, h, config)
+	c, err = NewConnection(rw, h, config, false)
 	if err != nil {
 		return
 	}
@@ -76,8 +77,12 @@ func DialUnix(address string, config ConnectionConfig, h Handler) (c *Connection
 	return
 }
 
-func NewConnection(rw net.Conn, h Handler, config ConnectionConfig) (c *Connection, err error) {
-	c = &Connection{rw: rw, h: h, config: config}
+func NewConnection(rw net.Conn, h Handler, config ConnectionConfig, server bool) (c *Connection, err error) {
+	serverInt := uint64(0)
+	if server {
+		serverInt = uint64(1)
+	}
+	c = &Connection{rw: rw, h: h, config: config, server: serverInt}
 	err = c.init()
 	if err != nil {
 		if ce := c.close(err); ce != nil {
@@ -112,7 +117,7 @@ func (c *Connection) Close(reason error) (err error) {
 	}
 
 	if c.config.OnClose != nil {
-		c.config.OnClose(reason)
+		c.config.OnClose(c, reason)
 	}
 	return
 }
@@ -191,20 +196,29 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 			l.Warn("zrpc: bug, empty frame")
 			return
 		}
-		c.Lock()
-		f := c.respes[frame.RequestID]
-		if f != nil {
-			delete(c.respes, frame.RequestID)
-		}
-		c.Unlock()
-		if f != nil {
-			f(frame)
+		if c.isResp(frame) {
+			c.Lock()
+			f := c.respes[frame.RequestID]
+			if f != nil {
+				delete(c.respes, frame.RequestID)
+			}
+			c.Unlock()
+			if f != nil {
+				f(frame)
+				continue
+			}
+			l.Warn("zrpc: dropped response",
+				zap.Uint32("cmd", uint32(frame.Cmd)),
+				zap.Uint64("requestID", frame.RequestID),
+				zap.String("payload", string(frame.Payload)),
+				zap.Int("#payload", len(frame.Payload)),
+				zap.Uint64("ridGen", atomic.LoadUint64(&c.ridGen)))
 			continue
 		}
 
 		if c.h == nil {
 			l.Warn(
-				"zrpc: dropped frame",
+				"zrpc: dropped request",
 				zap.Uint32("cmd", uint32(frame.Cmd)),
 				zap.Uint64("requestID", frame.RequestID),
 				zap.String("payload", string(frame.Payload)),
@@ -221,7 +235,11 @@ func (c *Connection) serve(ctx context.Context) (err error) {
 
 func (conn *Connection) nextRequestID() uint64 {
 	ridGen := atomic.AddUint64(&conn.ridGen, 1)
-	return 2*ridGen + 1
+	return 2*ridGen + 1 + conn.server
+}
+
+func (conn *Connection) isResp(frame *Frame) bool {
+	return conn.server == (frame.RequestID+1)%2
 }
 
 func (c *Connection) Request(cmd Cmd, payload []byte, f func(*Frame)) {

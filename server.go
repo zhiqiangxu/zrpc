@@ -83,7 +83,7 @@ func (s *Server) Serve(h Handler) {
 				tempDelay = 0
 
 				util.GoFunc(&s.wg, func() {
-					c, err := NewConnection(rw, h, s.config.Connection)
+					c, err := NewConnection(rw, h, s.config.Connection, true)
 					if err != nil {
 						l.Error("zrpc: NewConnection error when Server.Serve", zap.Error(err))
 						return
