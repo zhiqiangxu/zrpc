@@ -280,6 +280,7 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 	if wto > 0 {
 		err = c.rw.SetWriteDeadline(deadline)
 		if err != nil {
+			c.Close(err)
 			return
 		}
 	}
@@ -296,11 +297,13 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 		if err != nil {
 			if opError, ok := err.(*net.OpError); ok && opError.Timeout() {
 				if wto > 0 && time.Now().After(deadline) {
+					c.Close(err)
 					return
 				} else {
 					continue
 				}
 			}
+			c.Close(err)
 			return
 		}
 	}
