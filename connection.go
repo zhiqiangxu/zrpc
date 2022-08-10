@@ -92,6 +92,10 @@ func NewConnection(rw net.Conn, h Handler, config ConnectionConfig, server bool)
 	return
 }
 
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.rw.RemoteAddr()
+}
+
 func (c *Connection) CloseNoCallback() (err error) {
 	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
 	if !ok {
