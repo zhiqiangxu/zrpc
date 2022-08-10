@@ -96,8 +96,8 @@ func (c *Connection) RemoteAddr() net.Addr {
 	return c.rw.RemoteAddr()
 }
 
-func (c *Connection) CloseNoCallback() (err error) {
-	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
+func (c *Connection) CloseNoOnClose() (ok bool, err error) {
+	ok = atomic.CompareAndSwapInt32(&c.closed, 0, 1)
 	if !ok {
 		err = fmt.Errorf("Connection is already closed")
 		return
@@ -105,19 +105,24 @@ func (c *Connection) CloseNoCallback() (err error) {
 	err = c.rw.Close()
 	if err != nil {
 		l.Error("zrpc: Connection.Close error", zap.Error(err))
+	}
+
+	c.Lock()
+	respes := c.respes
+	c.respes = nil
+	c.Unlock()
+
+	for _, cb := range respes {
+		cb(nil)
 	}
 	return
 }
 
 func (c *Connection) Close(reason error) (err error) {
-	ok := atomic.CompareAndSwapInt32(&c.closed, 0, 1)
+	ok, err := c.CloseNoOnClose()
+
 	if !ok {
-		err = fmt.Errorf("Connection is already closed")
 		return
-	}
-	err = c.rw.Close()
-	if err != nil {
-		l.Error("zrpc: Connection.Close error", zap.Error(err))
 	}
 
 	if c.config.OnClose != nil {
@@ -271,7 +276,12 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 	wto := c.config.WTO
 
 	c.Lock()
-	defer c.Unlock()
+	defer func() {
+		c.Unlock()
+		if err != nil {
+			c.Close(err)
+		}
+	}()
 
 	if f != nil {
 		if c.respes == nil {
@@ -284,7 +294,6 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 	if wto > 0 {
 		err = c.rw.SetWriteDeadline(deadline)
 		if err != nil {
-			c.Close(err)
 			return
 		}
 	}
@@ -301,13 +310,11 @@ func (c *Connection) writeFrame(header [headerSize]byte, payload []byte, f func(
 		if err != nil {
 			if opError, ok := err.(*net.OpError); ok && opError.Timeout() {
 				if wto > 0 && time.Now().After(deadline) {
-					c.Close(err)
 					return
 				} else {
 					continue
 				}
 			}
-			c.Close(err)
 			return
 		}
 	}
