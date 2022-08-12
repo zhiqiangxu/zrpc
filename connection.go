@@ -85,9 +85,8 @@ func NewConnection(rw net.Conn, h Handler, config ConnectionConfig, server bool)
 	c = &Connection{rw: rw, h: h, config: config, server: serverInt}
 	err = c.init()
 	if err != nil {
-		if ce := c.close(err); ce != nil {
-			l.Error("zrpc: Connection.Close error when NewConnection", zap.Error(err))
-		}
+		c.CloseNoOnClose()
+		l.Error("zrpc: Connection.init error when NewConnection", zap.Error(err))
 	}
 	return
 }
