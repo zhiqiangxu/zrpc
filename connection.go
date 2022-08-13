@@ -24,6 +24,7 @@ type Connection struct {
 	ridGen    uint64
 	respes    map[uint64]func(*Frame)
 	id        interface{}
+	any       interface{}
 	server    uint64
 }
 
@@ -169,6 +170,43 @@ func (c *Connection) init() (err error) {
 	} else if c.config.DefaultReadSize < headerSize {
 		c.config.DefaultReadSize = headerSize
 	}
+	return
+}
+
+func (c *Connection) GetAny() (any interface{}) {
+	c.RLock()
+
+	any = c.any
+
+	c.RUnlock()
+	return
+}
+
+func (c *Connection) SetAny(any interface{}) {
+	c.Lock()
+	c.any = any
+	c.Unlock()
+}
+
+func (c *Connection) GetOrSet(fn func() interface{}) (any interface{}, loaded bool) {
+	c.RLock()
+
+	any = c.any
+
+	c.RUnlock()
+	if any != nil {
+		loaded = true
+		return
+	}
+
+	c.Lock()
+	if c.any == nil {
+		c.any = fn()
+	} else {
+		loaded = true
+	}
+	any = c.any
+	c.Unlock()
 	return
 }
 

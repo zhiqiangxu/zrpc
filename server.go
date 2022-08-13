@@ -15,6 +15,9 @@ type Responser interface {
 	Close(reason error) error
 	SetID(interface{})
 	GetID() interface{}
+	GetAny() (any interface{})
+	SetAny(any interface{})
+	GetOrSet(fn func() interface{}) (any interface{}, loaded bool)
 }
 
 type Server struct {
